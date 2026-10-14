@@ -1,4 +1,7 @@
+from pathlib import Path
+
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.config import get_settings
@@ -11,6 +14,11 @@ app = FastAPI(
     description="Data quality API for cleaned live-music events, venues, artists, and markets.",
     version="0.1.0",
 )
+
+
+@app.get("/", include_in_schema=False)
+def dashboard() -> FileResponse:
+    return FileResponse(Path(__file__).with_name("web_dashboard.html"))
 
 
 @app.get("/health")
@@ -169,3 +177,4 @@ def top_markets(
         raise HTTPException(status_code=500, detail=f"Could not fetch top markets: {exc}") from exc
 
     return {"count": len(rows), "markets": rows}
+

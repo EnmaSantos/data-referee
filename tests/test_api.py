@@ -4,9 +4,21 @@ import app.main as main
 from app.config import Settings
 
 
-def test_render_database_url_uses_installed_psycopg_driver() -> None:
+def test_provider_database_url_uses_installed_psycopg_driver() -> None:
     settings = Settings(database_url="postgresql://user:pass@db.example/live_music")
     assert settings.database_url == "postgresql+psycopg://user:pass@db.example/live_music"
+
+
+def test_hosted_dashboard_is_available_without_database(monkeypatch) -> None:
+    def database_must_not_be_called():
+        raise AssertionError("Dashboard HTML should not connect to the database")
+
+    monkeypatch.setattr(main, "ping_database", database_must_not_be_called)
+    response = TestClient(main.app).get("/")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "Live Music Data Health" in response.text
+    assert "/data-quality-report" in response.text
 
 
 def test_health_endpoint_reports_ok(monkeypatch) -> None:
@@ -72,3 +84,4 @@ def test_artist_search_report_shape(monkeypatch) -> None:
     body = response.json()
     assert body["count"] == 1
     assert body["artist_searches"][0]["searched_artist"] == "Gracie Abrams"
+

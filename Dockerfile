@@ -12,10 +12,11 @@ RUN apt-get update \
 COPY pyproject.toml README.md /app/
 COPY app /app/app
 COPY sql /app/sql
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[dashboard]'
 
 COPY . /app
 
 EXPOSE 8000
 
 CMD ["python", "-m", "app.start"]
+

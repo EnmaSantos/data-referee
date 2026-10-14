@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Music · Data Health</title>
+<style>
+:root{color-scheme:light;font-family:system-ui,-apple-system,sans-serif;color:#182c30;background:#f4f7f7}
+*{box-sizing:border-box}body{margin:0}main{max-width:1200px;margin:auto;padding:40px 24px}
+header{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;margin-bottom:30px}
+h1{font-size:32px;margin:6px 0 10px;letter-spacing:-1px}h2{font-size:19px;margin:0 0 18px}
+p{color:#5a6c70;line-height:1.5}a{color:#126e67}nav{display:flex;gap:18px;align-items:center}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:2px;color:#19786d}
+button{background:#126e67;color:white;border:0;border-radius:8px;padding:11px 18px;font:inherit;cursor:pointer}
+button:disabled{opacity:.6;cursor:wait}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:24px 0}
+.card,section{background:white;border:1px solid #dfe8e7;border-radius:12px;padding:22px}
+.label{font-size:13px;color:#5a6c70}.value{font-size:32px;font-weight:650;margin-top:9px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.full{grid-column:1/-1}
+.scroll{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px;text-align:left}
+th{font-size:11px;color:#5a6c70;text-transform:uppercase;letter-spacing:.5px}
+th,td{padding:12px 9px;border-bottom:1px solid #edf1f1;white-space:nowrap}td:first-child{white-space:normal}
+.notice{padding:14px 18px;border-radius:8px;background:#e5f2ee;color:#256457;font-size:14px}
+.error{background:#fff0ed;color:#a53221}footer{margin-top:24px;color:#5a6c70;font-size:12px}
+@media(max-width:800px){.metrics{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}.full{grid-column:auto}main{padding:24px 16px}h1{font-size:27px}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">DATA REFEREE / LIVE MUSIC</div><h1>Live Music Data Health</h1><p>Event coverage, cleanup priorities, and artist search quality.</p></div>
+<nav><a href="/docs">API docs ↗</a><a href="https://github.com/EnmaSantos/data-referee">GitHub ↗</a><button id="refresh">Refresh</button></nav></header>
+<div id="status" class="notice" role="status" aria-live="polite">Connecting to the data pipeline…</div>
+<div class="metrics" aria-label="Data summary">
+<div class="card"><div class="label">Events loaded</div><div class="value" id="events">—</div></div>
+<div class="card"><div class="label">Unique artists</div><div class="value" id="artists">—</div></div>
+<div class="card"><div class="label">Unique venues</div><div class="value" id="venues">—</div></div>
+<div class="card"><div class="label">Average health score / 100</div><div class="value" id="score">—</div></div>
+</div><div class="grid">
+<section><h2>Health by data source</h2><div id="sources" class="scroll"></div></section>
+<section><h2>Cleanup priorities</h2><div id="issues" class="scroll"></div></section>
+<section class="full"><h2>Top markets</h2><div id="markets" class="scroll"></div></section>
+<section><h2>Venues needing cleanup</h2><div id="venue-issues" class="scroll"></div></section>
+<section><h2>Possible duplicate artists</h2><div id="duplicates" class="scroll"></div></section>
+<section class="full"><h2>Artist search quality</h2><div id="searches" class="scroll"></div></section>
+<section class="full"><h2>Recent ingestion runs</h2><div id="runs" class="scroll"></div></section>
+</div><footer>Powered by FastAPI and PostgreSQL. Results reflect the data currently loaded in the pipeline.</footer>
+</main><script>
+const friendly=value=>String(value??'—').replaceAll('_',' ').replace(/\b\w/g,c=>c.toUpperCase());
+const format=value=>typeof value==='number'?value.toLocaleString():Array.isArray(value)?value.map(friendly).join(', '):friendly(value);
+function table(id,rows,columns){
+ const target=document.getElementById(id);target.replaceChildren();
+ if(!rows.length){const p=document.createElement('p');p.textContent='No records in the current dataset.';target.append(p);return;}
+ const t=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');
+ for(const [,label] of columns){const th=document.createElement('th');th.scope='col';th.textContent=label;tr.append(th);}head.append(tr);t.append(head);
+ const body=document.createElement('tbody');
+ for(const row of rows){const tr=document.createElement('tr');for(const [key] of columns){const td=document.createElement('td');td.textContent=format(row[key]);tr.append(td);}body.append(tr);}t.append(body);target.append(t);
+}
+async function get(path){const r=await fetch(path);if(!r.ok)throw new Error('The API could not load the report ('+r.status+'). Please try again.');return r.json();}
+async function refresh(){
+ const button=document.getElementById('refresh'),status=document.getElementById('status');button.disabled=true;status.className='notice';status.textContent='Loading live reports…';
+ try{
+ const [report,markets,venues,duplicates,searches]=await Promise.all(['/data-quality-report','/markets/top','/venues/issues','/artists/duplicates','/artists/search-report'].map(get));
+ const s=report.summary;
+ for(const [id,key] of [['events','event_records'],['artists','unique_artists'],['venues','unique_venues']])document.getElementById(id).textContent=Number(s[key]||0).toLocaleString();
+ document.getElementById('score').textContent=Number(s.avg_quality_score||0).toFixed(1);
+ table('sources',report.score_by_source,[['source','Source'],['event_records','Events'],['avg_quality_score','Health score'],['issue_count','Issues']]);
+ table('issues',report.top_issues,[['issue_type','Issue'],['severity','Priority'],['issue_count','Count']]);
+ table('markets',markets.markets,[['market','Market'],['state','State'],['event_count','Events'],['unique_artist_count','Artists'],['avg_quality_score','Health score']]);
+ table('venue-issues',venues.venues,[['venue_name','Venue'],['city','City'],['missing_capacity_events','Missing capacity'],['invalid_coordinate_events','Coordinate issues']]);
+ table('duplicates',duplicates.artists,[['canonical_artist_name','Artist'],['duplicate_record_count','Possible duplicate IDs'],['event_count','Events']]);
+ table('searches',searches.artist_searches,[['searched_artist','Search'],['api_rows','Rows returned'],['loaded_events','Events loaded'],['top_returned_artist','Top match'],['avg_quality_score','Health score']]);
+ table('runs',report.recent_ingestion_runs,[['source_name','Source'],['records_seen','Rows found'],['records_loaded','Rows loaded'],['issue_count','Issues'],['status','Status']]);
+ const sample=report.recent_ingestion_runs.some(r=>r.source_name==='sample_events');
+ status.textContent=(sample?'Sample data is included in this demo. ':'')+'Updated '+new Date().toLocaleTimeString()+'.';
+ }catch(error){status.className='notice error';status.textContent=error.message;}finally{button.disabled=false;}
+}
+document.getElementById('refresh').addEventListener('click',refresh);refresh();
+</script></body></html>
