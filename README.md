@@ -6,11 +6,13 @@ The project ingests concert/event data, normalizes artist, venue, market, date, 
 
 ## Live Demo
 
-- [Open the live data-quality dashboard](https://live-music-quality-dashboard.onrender.com)
-- [Explore the FastAPI documentation](https://live-music-quality-api.onrender.com/docs)
-- [Check the API health endpoint](https://live-music-quality-api.onrender.com/health)
+The Render demo is unavailable. Migration to Vercel (FastAPI and web dashboard)
+and Neon Free (PostgreSQL) is prepared; production links will be added after
+the database connection and deployment are verified.
 
-The services use Render's free tier, so the first request after a period of inactivity may take a moment to start.
+See the [free deployment guide](docs/free-deployment.md) for configuration and checks.
+The new database starts with bundled sample data; historical Ticketmaster findings
+below describe the earlier dataset, which requires a backup restore or fresh import.
 
 ![Live Music Data Health Dashboard](docs/assets/dashboard-data-health.png)
 
@@ -87,7 +89,7 @@ flowchart LR
 - **Data:** Pandas, SQL
 - **Database:** PostgreSQL
 - **API:** FastAPI
-- **Dashboard:** Streamlit
+- **Dashboard:** API-powered web dashboard; Streamlit for local development
 - **Infrastructure:** Docker, Docker Compose
 - **Cloud path:** AWS RDS and EC2 documentation
 - **Testing:** Pytest, Ruff
@@ -266,7 +268,7 @@ Docker is the easiest way to run the project. For local development without Dock
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,dashboard]"
 ```
 
 Start only PostgreSQL:
@@ -295,6 +297,10 @@ ruff check .
 ```
 
 ## Cloud Deployment Path
+
+For the free portfolio demo, use [Vercel + Neon](docs/free-deployment.md).
+The API and read-only web dashboard share one Vercel deployment, and PostgreSQL
+lives in Neon. Docker Compose and the Streamlit dashboard continue to work locally.
 
 The project includes an AWS deployment guide at [docs/aws-deployment.md](docs/aws-deployment.md). The intended production-style path is:
 
@@ -350,3 +356,4 @@ Then stop the conflicting process or change the ports in `docker-compose.yml`.
 - Implemented SQL validation checks, duplicate detection, schema constraints, and data-health reports to flag missing venue metadata, malformed dates, inconsistent market names, invalid coordinates, and duplicate artist records.
 - Created artist-level search quality reporting to identify direct artist matches, tribute-event contamination, ambiguous keyword results, zero-result pulls, and missing artist metadata.
 - Documented an AWS RDS/EC2 deployment path for a FastAPI service backed by PostgreSQL.
+

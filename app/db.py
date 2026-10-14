@@ -10,7 +10,9 @@ from app.config import get_settings
 @lru_cache
 def get_engine(database_url: Optional[str] = None) -> Engine:
     url = database_url or get_settings().database_url
-    return create_engine(url, pool_pre_ping=True, future=True)
+    return create_engine(
+        url, pool_pre_ping=True, pool_size=2, max_overflow=1, pool_recycle=300, future=True
+    )
 
 
 def ping_database(engine: Optional[Engine] = None) -> bool:
@@ -38,3 +40,4 @@ def fetch_one(
 ) -> dict[str, Any]:
     rows = fetch_all(query, params=params, engine=engine)
     return rows[0] if rows else {}
+

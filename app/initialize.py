@@ -1,9 +1,11 @@
 """Initialize a hosted database and seed it once with the bundled sample data."""
 
+import os
 from pathlib import Path
 
 from sqlalchemy import text
 
+from app.config import Settings, get_settings
 from app.db import get_engine
 from app.ingestion.pipeline import load_csv, run_migrations
 
@@ -12,6 +14,12 @@ LOCK_ID = 734_620_241
 
 
 def initialize() -> None:
+    # Migration/advisory locks need a direct connection, not transaction pooling.
+    direct_url = os.getenv("DATABASE_URL_UNPOOLED")
+    if direct_url:
+        os.environ["DATABASE_URL"] = Settings(database_url=direct_url).database_url
+        get_settings.cache_clear()
+        get_engine.cache_clear()
     engine = get_engine()
 
     # Both web services can start together. A session-level advisory lock keeps
@@ -33,3 +41,4 @@ def initialize() -> None:
 
 if __name__ == "__main__":
     initialize()
+
